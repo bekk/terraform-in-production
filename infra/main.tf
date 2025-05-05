@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 6.32"
+    }
+  }
+  required_version = "~> 1.11"
+}
 provider "google" {
   project = var.project_id
   region  = var.regions[0]
@@ -5,7 +14,7 @@ provider "google" {
 
 check "workshop_project_is_used" {
   assert {
-    condition   = var.project_id == "cloud-labs-workshop-42clws"
+    condition     = var.project_id == "cloud-labs-workshop-42clws"
     error_message = "The provider should be using the cloud-labs-workshop. This check is a safety measure to prevent provisioning in other projects. If you're running in your own project, edit or delete this check."
   }
 }
@@ -23,7 +32,7 @@ resource "google_compute_subnetwork" "subnets" {
   ip_cidr_range = var.subnet_cidrs[count.index]
   network       = google_compute_network.vpc.id
   region        = var.regions[count.index]
-  
+
   log_config {
     aggregation_interval = "INTERVAL_10_MIN"
     flow_sampling        = 0.5
@@ -35,9 +44,9 @@ resource "google_dns_managed_zone" "private_zone" {
   name        = "${var.name_prefix}-private-zone"
   dns_name    = "workshop.internal."
   description = "Private DNS zone for workshop"
-  
+
   visibility = "private"
-  
+
   private_visibility_config {
     networks {
       network_url = google_compute_network.vpc.id
@@ -62,14 +71,12 @@ resource "google_service_account" "service_accounts" {
   description  = "Service account for ${var.service_accounts[count.index]} services"
 }
 
-resource "google_project_iam_binding" "project_roles" {
-  count   = length(var.project_roles)
+resource "google_project_iam_member" "project_roles" {
+  count   = length(var.project_roles) * length(google_service_account.service_accounts)
   project = var.project_id
-  role    = var.project_roles[count.index]
-  
-  members = [
-    "serviceAccount:${google_service_account.service_accounts[0].email}",
-  ]
+  role    = var.project_roles[floor(count.index / length(var.service_accounts))]
+
+  member = "serviceAccount:${google_service_account.service_accounts[count.index % length(google_service_account.service_accounts)].email}"
 }
 
 # Variables to support the above
@@ -110,7 +117,7 @@ variable "service_accounts" {
 variable "project_roles" {
   description = "IAM roles to assign"
   type        = list(string)
-  default     = [
+  default = [
     "roles/monitoring.viewer",
     "roles/logging.viewer"
   ]
