@@ -121,11 +121,11 @@ The previous commands will have created a `.terraform/` directory, a `.terraform
 
 Terraform has two mechanisms for changing the address of a resource. `terraform state mv` and the `moved` block. The first one act on the state file directly, and the second is most commonly used when renaming resources in the configuration. 
 
-* Run `terraform state mv google_compute_network.vpc google_compute_network.vpc_renamed` to rename the `google_compute_network.vpc` resource to `google_compute_network.vpc_renamed`. This will update the state file, but not the configuration.
+1. Run `terraform state mv google_compute_network.vpc google_compute_network.vpc_renamed` to rename the `google_compute_network.vpc` resource to `google_compute_network.vpc_renamed`. This will update the state file, but not the configuration.
 
-* Run `terraform plan` to examine how Terraform wishes to fix the configuration drift between the state file and the configuration file. Note especially how this affects dependant resources, like the subnets and the DNS zone. Do not apply this configuration!
+2. Run `terraform plan` to examine how Terraform wishes to fix the configuration drift between the state file and the configuration file. Note especially how this affects dependant resources, like the subnets and the DNS zone. Do not apply this configuration!
 
-* Let's fix the state file with a [`moved` block](https://developer.hashicorp.com/terraform/language/moved):
+3. Let's fix the state file with a [`moved` block](https://developer.hashicorp.com/terraform/language/moved):
 
     ```hcl
     moved {
@@ -136,42 +136,46 @@ Terraform has two mechanisms for changing the address of a resource. `terraform 
 
     Examine the output of `terraform plan` again. It should show the change to the state file, but also say "Plan: 0 to add, 0 to change, 0 to destroy" since this involves no actual changes. 
 
-* Apply the configuration (using `terraform apply`) before continuing. Then remove the `moved` block from the configuration.
+4. Apply the configuration (using `terraform apply`) before continuing. Then remove the `moved` block from the configuration.
 
-* The `moved` blocks and `terraform state` commands also work on maps and lists of objects, such as `google_compute_subnetwork.subnets` (which has 3 resources). We'll do the same operation, but this time we'll start with the `moved` block.
+5. The `moved` blocks and `terraform state` commands also work on maps and lists of objects, such as `google_compute_subnetwork.subnets` (which has 3 resources). We'll do the same operation, but this time we'll start with the `moved` block.
 
     Start by changing the address of the resources from `subnets` to `subnets_renamed`, and optionally run `terraform plan` to view what happens. Then create a `moved` block that renames the addresses in the state file. Run `terraform plan` to verify that there are no changes other than the three address changes.
 
-* Apply the configuration before undoing the changes in the configuration file. Running `terraform plan` should show 3 added and 3 destroyed resources. Use `terraform state mv` to fix the state file, and run `terraform plan` to verify that there are no changes.
+6. Apply the configuration before undoing the changes in the configuration file. Running `terraform plan` should show 3 added and 3 destroyed resources. Use `terraform state mv` to fix the state file, and run `terraform plan` to verify that there are no changes.
 
 
-### Concept: Drift
+You can read more about the available [state manipulation commands](https://developer.hashicorp.com/terraform/cli/commands/state). 
+
+
+### 1.3: Drift
 
 "Drift" is when the defined state (or code) differs from the actual state of the infrastructure. This can happen for various reasons, such as manual changes made in the cloud provider's console, code changes not properly applied in an environment or changes made by other tools or scripts.
 
 In order to handle drift, Terraform always executes a "refresh" before plan or apply operations to update the state file with real-world status. It will then reconcile the tracked resources in the state file with the actual status.
 
-You can trigger a refresh manually with `terraform refresh`, but this is not necessary in most cases. 
+You can trigger a refresh manually with `terraform refresh` or using the `-refresh-only` flag with `terraform plan` and `terraform apply`. Refreshing the state is normally not necessary when running `terraform plan` or `terraform apply`, but can be useuful in special situations.
 
-1. Run `terraform refresh`. You should see multiple lines (one per tracked resource) with "Refreshing state...".
+1. Next, go into the Google Cloud Console, and search for "VPC networks" in the top middle search bar. Click on the "VPC networks" link and find your VPC in the list. Click "Subnets" in the menu bar, and delete one of the subnets listed.
 
-2. Next, go into the Google Cloud Console, and // TODO
+2. Let's see the effect of refreshing the state.
 
+    1. Run `terraform plan -refresh=false`. You should not see any changes to be applied since the state file and configuration files are in sync.
+    2. Run `terraform plan -refresh-only -out=plan.tfplan`. You can see from the output which resources Terraform refreshes the status of. Terraform will generate a plan to update the state file.
+    3. Run `terraform apply plan.tfplan`. To apply the changes to the state file.
+    4. (Optional) You can compare the state file by looking at the difference between of `terraform.tfstate` and `terraform.tfstate.backup`.
+    5. Run `terraform plan -refresh=false` again. Terraform will now detect a difference between the state file and the configuration. Terraform will show the plan to change the real-world state back to the desired state decided by the configuration.
 
-
-- **Key Points:**
-  - Drift occurs when the infrastructure changes outside of Terraform.
-  - Use `terraform refresh` to sync state with the real-world infrastructure.
-- **Hands-On Task:**
-  - Manually edit a Terraform-managed resource (e.g., change a subnet CIDR in the GCP Console).
-  - Run `terraform plan` to see the drift.
-  - Use `terraform apply` to fix the drift.
-
-- **Documentation Link:** [State Manipulation Commands](https://developer.hashicorp.com/terraform/cli/commands/state)
+3. Run `terraform apply` and apply the configuration to get the infrastructure back to the desired state.
 
 
+> [!NOTE]
+> `terraform apply -refresh-only` will give the option to update the state file without generating an intermediate state file (generally, all arguments given to `terraform plan` can also be given to `terraform apply`).
+>
+> `terraform refresh` can be used to refresh and apply the state to the state file directly without reviewing it. This is most similar to what is actually done by `terraform plan` before generating the actual plan.
 
-### Concept: Moving Resources Between Files (5 minutes)
+
+### 1.4: Moving Resources Between Files (5 minutes)
 - **Key Points:**
   - Resources can be split into multiple files to improve organization.
   - When resources are moved, Terraform may lose track unless state is updated.
