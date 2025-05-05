@@ -44,6 +44,18 @@ gcloud auth login
 
 This will open a web browser for you to log in with your Google account. After logging in, you will be prompted to select a project. Choose the project you will be using for the workshop.
 
+If you're not prompted to select a project, set the project with:
+
+```bash
+gcloud config set project cloud-labs-workshop-project-42clws
+```
+
+Then run:
+
+```bash
+glcoud auth application-default login
+```
+
 To verify your project, run:
 
 ```bash
