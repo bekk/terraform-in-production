@@ -230,7 +230,7 @@ With remote state, Terraform writes the state data to a remote data store, which
 As long as the backend supports state locking, Terraform will lock your state for all operations that could write state. This will prevent others from acquiring the lock and potentially corrupting your state. Since GCS supports state locking, this happens automatically on all operations that could write state.
 
 - State lock can be verified by:
-  - Try changing the "google_dns_managed_zone" "private_zone" resource name and run `terraform apply` but leave it on approval prompt and then, in another terminal, run `terraform plan`. You should see that the state file is locked by the `terraform apply`action.
+  - Try changing the "google_dns_managed_zone" "private_zone" resource name and run `terraform apply` but leave it on approval prompt and then, in another terminal, run `terraform plan`. You should see that the state file is locked by the `terraform apply` operation.
 - **Documentation Link:** [GCS Remote Backend](https://developer.hashicorp.com/terraform/language/settings/backends/gcs)
 
 ---
