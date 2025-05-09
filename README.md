@@ -193,7 +193,7 @@ You can trigger a refresh manually with `terraform refresh` or using the `-refre
 
 #### Why Use Remote State?
 
-By default, Terraform stores the state locally in a terraform.tfstate file. When using Terraform in a team or production it is important for everyone to be working with the same state so that operations will be applied to the same remote objects.
+By default, Terraform stores the state locally in a `terraform.tfstate` file. When using Terraform in a team it is important for everyone to be working with the same state so that operations will be applied to the same remote objects.
 
 With remote state, Terraform writes the state data to a remote data store, which can be shared between all members of a team. Remote state can be implemented by storing state in Amazon S3, Azure Blob Storage, Google Cloud Storage and more. In Terraform it is implemented by a 'backend' resource block.
 
