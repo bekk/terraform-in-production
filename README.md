@@ -197,10 +197,6 @@ By default, Terraform stores the state locally in a `terraform.tfstate` file. Wh
 
 With remote state, Terraform writes the state data to a remote data store, which can be shared between all members of a team. Remote state can be implemented by storing state in Amazon S3, Azure Blob Storage, Google Cloud Storage and more. Terraform configures the remote storage a [`backend` block](https://developer.hashicorp.com/terraform/language/backend).
 
-- **Key Points:**
-  - Remote state is essential for collaboration and to avoid conflicts.
-  - It ensures state is stored securely (e.g., in a GCS bucket with encryption).
-
 ### 3.1: Create a GCS bucket for remote state storage:
 
 - Run the following command to create a GCS bucket:
@@ -208,6 +204,8 @@ With remote state, Terraform writes the state data to a remote data store, which
   ```bash
   gcloud storage buckets create gs://<bucket_name> --project=cloud-labs-workshop-42clws --location=europe-west1
   ```
+
+  <bucket_name> can be any globally unique string, we recommend <your_prefix>_state_storage*<random_string>. The <random_string> should be 4-6 random lower case letters or numbers.
 
   - Update the Terraform configuration to use the provisioned bucket as a backend:
     ```hcl
@@ -227,10 +225,10 @@ With remote state, Terraform writes the state data to a remote data store, which
 
 #### State Locking with GCS
 
-As long as the backend supports state locking, Terraform will lock your state for all operations that could write state. This will prevent others from acquiring the lock and potentially corrupting your state. Since GCS supports state locking, this happens automatically on all operations that could write state.
+As long as the backend supports state locking, Terraform will lock your state for all operations that could write state. This will prevent others from acquiring the lock and potentially corrupting your state. Since GCS supports state locking, this happens automatically on all operations that could write state. This is especially important when working in a team or when automated workflows (such as CI/CD pipelines) may run Terraform simultaneously, as it ensures only one operation can modify the state at a time.
 
 - State lock can be verified by:
-  - Try changing the "google_dns_managed_zone" "private_zone" resource name and run `terraform apply` but leave it on approval prompt and then, in another terminal, run `terraform plan`. You should see that the state file is locked by the `terraform apply` operation.
+  - Try changing the "google_dns_managed_zone.private_zone" resource name and run `terraform apply` but leave it on approval prompt and then, in another terminal, run `terraform plan`. You should see that the state file is locked by the `terraform apply` operation.
 - **Documentation Link:** [GCS Remote Backend](https://developer.hashicorp.com/terraform/language/settings/backends/gcs)
 
 ---
