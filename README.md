@@ -190,16 +190,24 @@ You can trigger a refresh manually with `terraform refresh` or using the `-refre
 ---
 
 ## 3. **Remote State Migration**
-### Concept: Why Use Remote State? (5 minutes)
-- **Key Points:**
-  - Remote state is essential for collaboration and to avoid conflicts.
-  - It ensures state is stored securely (e.g., in a GCS bucket with encryption).
-- **Hands-On Task:**
-  - Create a GCS bucket for remote state storage:
-    ```bash
-    gsutil mb -p <project_id> -l US -b on gs://<bucket_name>
-    ```
-  - Update the Terraform configuration to use the bucket as a backend:
+
+#### Why Use Remote State?
+
+By default, Terraform stores the state locally in a `terraform.tfstate` file. When using Terraform in a team it is important for everyone to be working with the same state so that operations will be applied to the same remote objects.
+
+With remote state, Terraform writes the state data to a remote data store, which can be shared between all members of a team. Remote state can be implemented by storing state in Amazon S3, Azure Blob Storage, Google Cloud Storage and more. Terraform configures the remote storage a [`backend` block](https://developer.hashicorp.com/terraform/language/backend).
+
+### 3.1: Create a GCS bucket for remote state storage:
+
+- Run the following command to create a GCS bucket:
+
+  ```bash
+  gcloud storage buckets create gs://<bucket_name> --project=cloud-labs-workshop-42clws --location=europe-west1
+  ```
+
+  <bucket_name> can be any globally unique string, we recommend <your_prefix>_state_storage*<random_string>. The <random_string> should be 4-6 random lower case letters or numbers.
+
+  - Update the Terraform configuration to use the provisioned bucket as a backend:
     ```hcl
     terraform {
       backend "gcs" {
@@ -209,29 +217,41 @@ You can trigger a refresh manually with `terraform refresh` or using the `-refre
     }
     ```
   - Run `terraform init` and migrate the state to the bucket.
+  - verify that the state is located in gcloud storage bucket:
+    ```bash
+    gcloud storage ls gs://<BUCKET_NAME>/<PREFIX>
+    ```
+  - If you want to view the contents of the state file run `gcloud storage cat <PATH_TO_STATE_FILE>`
 
-### Concept: State Locking with GCS (3 minutes)
-- **Key Points:**
-  - State locking prevents multiple users from making changes simultaneously.
-  - GCS supports locking through object versioning.
+#### State Locking with GCS
+
+As long as the backend supports state locking, Terraform will lock your state for all operations that could write state. This will prevent others from acquiring the lock and potentially corrupting your state. Since GCS supports state locking, this happens automatically on all operations that could write state. This is especially important when working in a team or when automated workflows (such as CI/CD pipelines) may run Terraform simultaneously, as it ensures only one operation can modify the state at a time.
+
+- State lock can be verified by:
+  - Try changing the "google_dns_managed_zone.private_zone" resource name and run `terraform apply` but leave it on approval prompt and then, in another terminal, run `terraform plan`. You should see that the state file is locked by the `terraform apply` operation.
 - **Documentation Link:** [GCS Remote Backend](https://developer.hashicorp.com/terraform/language/settings/backends/gcs)
 
 ---
 
 ## 4. **Refactoring for Modularization**
+
 ### Concept: Why Modularize? (3 minutes)
+
 - **Key Points:**
   - Modules improve code reuse, organization, and readability.
   - Modules make it easier to work with teams by creating smaller, focused units of code.
 - **Documentation Link:** [Terraform Modules](https://developer.hashicorp.com/terraform/language/modules)
 
 ### Hands-On Task: Moving Resources into Modules (10 minutes)
+
 - **Step 1:** Create a `network` module:
+
   - Create a `modules/network` directory.
   - Move the `google_compute_network` and `google_compute_subnetwork` blocks into `modules/network/main.tf`.
   - Add input variables for dynamic values (e.g., `network_name`, `subnet_cidrs`, `region`).
 
 - **Step 2:** Refactor the root configuration:
+
   - Replace the original blocks with a module call:
     ```hcl
     module "network" {
