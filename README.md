@@ -175,19 +175,22 @@ You can trigger a refresh manually with `terraform refresh` or using the `-refre
 > `terraform refresh` can be used to refresh and apply the state to the state file directly without reviewing it. This is most similar to what is actually done by `terraform plan` before generating the actual plan.
 
 
-### 1.4: Moving Resources Between Files (5 minutes)
-- **Key Points:**
-  - Resources can be split into multiple files to improve organization.
-  - When resources are moved, Terraform may lose track unless state is updated.
-- **Hands-On Task:**
-  - Move the `google_dns_managed_zone.private_zone` resource block into a new file (`dns.tf`).
-  - Update the state with:
-    ```bash
-    terraform state mv google_dns_managed_zone.private_zone module.dns.google_dns_managed_zone.private_zone
-    ```
-  - Verify the change.
+### 1.4: Moving resources between files
 
----
+Our single configuration file is quite long and unmanageable. We can split it into multiple files to improve organization. As long as we keep the resources in files within the same directory, with the same resource name, Terraform will consider them the same. Moving files to different directories will create modules. For now, we will just create a logical split of files to simplify later refactoring.
+
+Terraform has a [style guide](https://developer.hashicorp.com/terraform/language/style), which contains a section about file names. We will follow this style guide to reorganize our code.
+
+1. Look up the [file names section in the style guide](https://developer.hashicorp.com/terraform/language/style#file-names).
+
+2. Move all the non-resource blocks (variables, providers, etc.) into their respective files.
+
+3. You should now have files named `terraform.tf`, `providers.tf`, `variables.tf` and `main.tf`.
+
+4. The the remaining resources in `main.tf` can split into files based on their function (e.g., `dns.tf`, `network.tf`, etc.), if you want to.
+
+5. When you're done, run `terraform plan` to verify that there are no changes to the configuration.
+
 
 ## 3. **Remote State Migration**
 
