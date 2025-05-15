@@ -181,7 +181,7 @@ Our single configuration file is quite long and unmanageable. We can split it in
 
 Terraform has a [style guide](https://developer.hashicorp.com/terraform/language/style), which contains a section about file names. We will follow this style guide to reorganize our code.
 
-1. Look up the [file names section in the style guide]https://developer.hashicorp.com/terraform/language/style#file-names).
+1. Look up the [file names section in the style guide](https://developer.hashicorp.com/terraform/language/style#file-names).
 
 2. Move all the non-resource blocks (variables, providers, etc.) into their respective files.
 
