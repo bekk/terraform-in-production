@@ -234,61 +234,141 @@ As long as the backend supports state locking, Terraform will lock your state fo
   - Try changing the "google_dns_managed_zone.private_zone" resource name and run `terraform apply` but leave it on approval prompt and then, in another terminal, run `terraform plan`. You should see that the state file is locked by the `terraform apply` operation.
 - **Documentation Link:** [GCS Remote Backend](https://developer.hashicorp.com/terraform/language/settings/backends/gcs)
 
----
+## 4. Refactoring for modularization
 
-## 4. **Refactoring for Modularization**
+Terraform [modules](https://developer.hashicorp.com/terraform/language/modules) improve code reuse, organization and readability. Modules can be used to create reusable components in a repository or create a library of reusable components shared between teams.
 
-### Concept: Why Modularize? (3 minutes)
 
-- **Key Points:**
-  - Modules improve code reuse, organization, and readability.
-  - Modules make it easier to work with teams by creating smaller, focused units of code.
-- **Documentation Link:** [Terraform Modules](https://developer.hashicorp.com/terraform/language/modules)
+### 4.1. The `network` module
 
-### Hands-On Task: Moving Resources into Modules (10 minutes)
+We'll start with a `network` module that is responsible for creating both the VPC and the subnets. We'll also have to take care to not modify the existing resources, and will use the [`moved` block](https://developer.hashicorp.com/terraform/language/moved) to avoid actual changes to the infrastructure.
 
-- **Step 1:** Create a `network` module:
+Modules are defined in their own directory, and can be used by referencing the module's source. The module's source can be a local path, a Git repository or a Terraform registry. It's common to gather modules at the repository root in the `modules/` folder.
 
-  - Create a `modules/network` directory.
-  - Move the `google_compute_network` and `google_compute_subnetwork` blocks into `modules/network/main.tf`.
-  - Add input variables for dynamic values (e.g., `network_name`, `subnet_cidrs`, `region`).
+1. Create the `modules/network` directory at the repository root.
 
-- **Step 2:** Refactor the root configuration:
+2. Create `modules/network/main.tf` and move the `google_compute_network` and `google_compute_subnetwork` resources into it.
 
-  - Replace the original blocks with a module call:
+3. We'll need to pass variable definitions to the module. Modules follow the same naming conventions Create `modules/network/variables.tf` and copy the required variables from `variables.tf` into it (`name_prefix`, `regions`, `subnet_cidrs` from `variables.tf`). Remove the variable defaults, if any.
+
+4. Other resources need to reference the VPC id, so we'll need a output. Create `modules/network/outputs.tf` with the following content:
+
     ```hcl
-    module "network" {
-      source       = "./modules/network"
-      network_name = "workshop-vpc"
-      subnet_cidrs = var.subnet_cidrs
-      region       = var.regions
+    output "vpc_id" {
+      description = "The ID of the VPC"
+      value       = google_compute_network.vpc.id
     }
     ```
 
-- **Step 3:** Update the state:
-  - Use `terraform state mv` to move the resources into the module’s namespace:
-    ```bash
-    terraform state mv google_compute_network.vpc module.network.google_compute_network.vpc
-    terraform state mv google_compute_subnetwork.subnets[0] module.network.google_compute_subnetwork.subnets[0]
+5. Add a `module` block to replace the previous network configuration file to call the module:
+
+    ```hcl
+    module "network" {
+      source       = "../modules/network"
+      name_prefix  = var.name_prefix
+      regions      = var.regions
+      subnet_cidrs = var.subnet_cidrs
+    }
     ```
 
-- **Step 4:** Verify with `terraform plan`.
+    And update `google_dns_managed_zone.private_zone` to refer to the module output `vpc_id` in the `network_url` argument:
 
----
+    ```hcl
+    network_url = module.network.vpc_id
+    ```
 
-By keeping the explanations brief and linking to documentation for in-depth details, participants can focus on the hands-on tasks while still having access to additional learning materials.
+6. Run `terraform init` and then `terraform plan` to verify that the changes are syntactically correct. Fix errors before continuing. Note that the plan will show changes to the infrastructure! But, can do this without changes to the infrastructure by using the `moved` block.
 
-## Part 2: Creating Effective Modules (2 hours)
+7. When moving between modules, the `moved` block must be in the module you moved from (in this case the root module). Add this `moved` block in the same file as the module declaration:
 
-### Module Basics (45 minutes)
-- Module structure and best practices
-- Input/output variables and validation
-- Module versioning strategies
+    ```hcl
+    moved {
+      from = google_compute_network.vpc
+      to   = module.network.google_compute_network.vpc
+    }
 
-### Refactoring Into Modules (75 minutes)
-- Hands-on lab: Identifying modularization opportunities in monolithic code
-- Exercise: Breaking down a configuration into logical modules
-- Exercise: Moving resources into modules while preserving state
+    moved {
+      # Note: We move all three subnets in the list at once
+      from = google_compute_subnetwork.subnets
+      to   = module.network.google_compute_subnetwork.subnets
+    }
+    ```
+
+    Run `terraform plan` again and verify that there are no changes, except moving resources.
+
+8. Apply the moves with `terraform apply`. This will move the resources in the state file without changing the infrastructure. Run `terraform plan` and see that the moves are no longer planned actions.
+
+9. Delete the `moved` block from the configuration file.
+
+> [!CAUTION]
+> Removing `moved` blocks in shared modules can cause breaking changes to consumers that haven't applied the move actions yet. This is not a problem here since we're the only consumer of the module. Read more [in the docs](https://developer.hashicorp.com/terraform/language/modules/develop/refactoring#removing-moved-blocks).
+
+The design of the `network` module can be improved, we'll get back to ways to do that in the extra tasks section later in the workshop.
+
+
+### 4.2. The `dns_a_record` module
+
+For the DNS configuration, we'll only create a module for creating a single DNS A record, leaving the DNS zone in the root module.
+
+1. Following similar steps to creating the `network` module, create `dns_a_record` module. This module should have three `string` variable inputs `name`, `zone_name` and `ipv4_address`, and create a single `google_dns_record_set` resource.
+
+2. We can then use a loop with the `count` meta-argument in the root module when we call the module:
+
+    ```hcl
+    module "records" {
+      count        = length(var.dns_records)
+      source       = "../modules/dns_a_record"
+      name         = "${var.dns_records[count.index]}.${var.name_prefix}.workshop.internal."
+      zone_name    = google_dns_managed_zone.private_zone.name
+      ipv4_address = "10.0.0.${10 + count.index}"
+    }
+    ```
+
+
+3. When refactoring resources that use looping this way, we need to use a moved block per resource:
+
+    ```hcl
+    moved {
+      from = google_dns_record_set.records[0]
+      to   = module.records[0].google_dns_record_set.record
+    }
+
+    moved {
+      from = google_dns_record_set.records[1]
+      to   = module.records[1].google_dns_record_set.record
+    }
+
+    moved {
+      from = google_dns_record_set.records[2]
+      to   = module.records[2].google_dns_record_set.record
+    }
+    ```
+
+
+4. Verify that the only actions are to move state, and apply the changes before removing the `moved` blocks.
+
+
+### 4.3. The `service_account` module
+
+The `service_account` module is a bit different, since it creates multiple resources using loops. The logic could be greatly simplified if we designed to module to create a service account, and assign it a set of roles.
+
+The `service_account` module should have variables `account_id`, `display_name`, `description`, `project_id` and `roles`. I.e, we want a that can replace the current looping logic with a module call similar to this:
+
+```hcl
+module "service_accounts" {
+  count  = length(var.service_accounts)
+  source = "../modules/service_account"
+
+  account_id   = "${var.name_prefix}-${var.service_accounts[count.index]}"
+  display_name = "<removed for brevity>"
+  description  = "<removed for brevity>"
+  project_id   = var.project_id
+  roles        = var.project_roles
+}
+```
+
+1. Create the `service_account` module in `modules/service_account` and use it. *Note:* This refactoring is not required to complete future tasks, and feel free to skip it or come back to it later if you want to.
+
 
 ## Part 3: Optional Deep-Dive Tracks (Choose Your Own Adventure - 5 hours)
 
@@ -334,6 +414,14 @@ By keeping the explanations brief and linking to documentation for in-depth deta
 - Static analysis and linting
 - Implementing pre-commit hooks
 - GCP-specific compliance checks
+
+### Track G: Creating reusable modules
+
+- Module structure and best practices
+- Sharing modules within an organization
+- Input/output variables and validation
+- Module versioning strategies
+
 
 ## Wrap-up and Best Practices (30 minutes)
 - Discussion of real-world challenges and solutions
