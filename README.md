@@ -452,6 +452,86 @@ You should now be able to automate terraform plan on PR.
 - Implementing pre-commit hooks
 - GCP-specific compliance checks
 
+### Track G: Checks, validation and assertions
+
+Terraform has [a type system](https://developer.hashicorp.com/terraform/language/expressions/types), covering basic funcitonality. It allows for type constraints in the configuration. Additionally, the language has support for different types of [custom conidtions](https://developer.hashicorp.com/terraform/language/expressions/custom-conditions) to validate assumptions and provide error messages.
+
+
+#### G.1 Input validation
+
+The `network` module has two `list(string)`  input variables, `regions` and `subnet_cidrs`, that are expected to be of the same length. Let's look at different ways of verifying this. First, let's get an introduction to variable validation.
+
+
+1. The `subnet_cidrs` is of type `list(string)`, we would like to validate that the ranges specified are valid. We can use a `validation` block inside our `variable` declaration. This would look like this:
+
+    ```hcl
+    variable "subnet_cidrs" {
+      description = "CIDR ranges for subnets"
+      type        = list(string)
+
+      validation {
+        condition     = alltrue([for cidr in var.subnet_cidrs : can(cidrhost(cidr, 255))])
+        error_message = "At least one of the specified subnets were too small, or one of the CIDR range was invalid. The subnets needs to contain at least 256 IP addresses (/24 or larger)."
+      }
+    }
+    ```
+
+    We added the `validation` block, the rest should be like before. Let's explain what's going on here:
+
+    - The `condition` is a boolean expression that must be true for the validation to pass.
+    - [`alltrue`](https://developer.hashicorp.com/terraform/language/functions/alltrue) is a function that returns true if all elements in the list are true.
+    - `for` is a [for expression](https://developer.hashicorp.com/terraform/language/expressions/for) that iterates over the list of CIDR ranges and checks if each one is valid using the `cidrhost` function.
+    - We can refer to the variable being validated with the same syntax as before: `var.subnet_cidrs`.
+    - [The `can` function](https://developer.hashicorp.com/terraform/language/functions/can) is a special function that returns true if the expression can be evaluated without errors. I.e., if `cidrhost` returns an error due to an invalid or to small IP address range, `can` will return false.
+    - If `condition` evaluates to false, the plan fails and the `error_message` will be printed.
+
+    *Add the validation* try to provoke a validation error by specifying a smaller IP address range (e.g., a `/25`) or specifying an invalid IP address. Make sure the code works again before moving to the next step.
+
+
+> [!NOTE]
+> For the following steps we will write the same code in different ways, so you might want to commit (or make a copy) of your code, in order to be able to revert later. If you've already done the tasks in Track D <!-- TODO: Not written, ensure correct reference later --> you might want to revert your changes to the network module.
+
+2. Depending on your use case, the best way might be to combine the variables into a structured type containing a list of objects with the properties `region` and `cidr` (the type definition would be `list(object({ region = string, cidr = string}))`. This would use the type system to ensure the assumptions are always correct. In Track <!-- TODO: Not written-->we do this refactoring, and will not repeat it here.
+
+3. Terraform 1.9.0 (released June, 2024) introduced [general expressions and cross-object references in input variable validations](https://www.hashicorp.com/en/blog/terraform-1-9-enhances-input-variable-validations). This lets us refer to different variables, locals and more during validation.
+
+    a. Add a new validation to either the `regions` or the `subnet_cidrs` variable to ensure that the two lists are of equal lengths. The condition should be  `length(var.regions) == length(var.subnet_cidrs)`.
+    b. Verify that the validation fails if the number of regions and CIDRs are not the same.
+
+
+4. For the purposes of this workshop, we can do a different refactoring to illustrate multiple validation blocks: Let's combine the `regions` and `subnet_cidrs` variables into a `subnets` variable with type `object({ regions = list(string), cidrs = list(string) })`. 
+    a. Remove the validation from the previous step, and modify the validation from the first step to work with the new variable type. Also update the module and the calling code to work with the new variable type defintion. Make sure `terraform plan` succeeds without modifications.
+    b. Add a second validation block to the `subnets` variable that verifies that the two lists have the same length. Add an appropriate error message.
+    c. Verify that the validation fails if the number of regions and CIDRs are not the same.
+
+#### G.2 Checks
+
+[Checks](https://developer.hashicorp.com/terraform/language/checks) lets you use custom conditions that will execute on every plan or apply operation. Failing checks will therefore not, however, have any effect on Terraform's execution of operations.
+
+
+1. Checks are very flexible. We can write the input validations in the previous step as assertions. Transform the validation of subnet CIDRs into a check. The general syntax of a check is:
+
+    ```hcl
+    check "check_name" {
+      // Optional data block
+
+      // At least one assertion block
+      assert {
+        condtion      = 1 == 1 // condition boolean expression
+        error_message = "error message"
+      }
+    }
+    ```
+
+2. You can add data blocks in the checks to verify that a property of some resource outside the configuration or the scope of the module is correct. E.g., validate assumptions on VMs or clusters, check that resources are securely configured, or check that website responds with 200 OK after Terraform has run using the [`http` provider](https://registry.terraform.io/providers/hashicorp/http/latest/docs/data-sources/http).
+
+    In the `dns_a_record` module. Write a check that uses the [`google_dns_managed_zone` data source](https://registry.terraform.io/providers/hashicorp/google/latest/docs/data-sources/dns_managed_zone) and verifies that `visibility` is `"private"`.
+
+    Apply the changes to the configuration.
+
+3. To see the check from the previous step, you can run `terraform destroy` to deprovision the resources and then apply the configuration again. Note how it gives you a warning during the `plan` step, since the managed zone does not exist yet. Terraform will still provision the DNS records however, indepent of the state of the checks.
+
+<!-- TODO
 ### Track G: Creating reusable modules
 
 - Module structure and best practices
@@ -459,13 +539,6 @@ You should now be able to automate terraform plan on PR.
 - Input/output variables and validation
 - Module versioning strategies
 
-## Wrap-up and Best Practices (30 minutes)
 
-- Discussion of real-world challenges and solutions
-- Performance optimization tips
-- Resource organization strategies for GCP
-- Q&A and additional resources
 
----
-
-This workshop is designed to be hands-on and practical, with each participant working through exercises on their Google Cloud infrastructure. The core sections focus on essential skills of state management and modularization, while the optional tracks allow participants to choose which advanced topics are most relevant to their work context with Google Cloud Platform.
+->
