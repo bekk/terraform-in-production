@@ -46,13 +46,13 @@ This will open a web browser for you to log in with your Google account. After l
 If you're not prompted to select a project, set the project with:
 
 ```bash
-gcloud config set project cloud-labs-workshop-project-42clws
+gcloud config set project cloud-labs-workshop-42clws
 ```
 
 Then run:
 
 ```bash
-glcoud auth application-default login
+gcloud auth application-default login
 ```
 
 To verify your project, run:
