@@ -164,7 +164,8 @@ You can trigger a refresh manually with `terraform refresh` or using the `-refre
 
 3. Run `terraform apply` and apply the configuration to get the infrastructure back to the desired state.
 
-> [!NOTE] > `terraform apply -refresh-only` will give the option to update the state file without generating an intermediate state file (generally, all arguments given to `terraform plan` can also be given to `terraform apply`).
+> [!NOTE]
+> `terraform apply -refresh-only` will give the option to update the state file without generating an intermediate state file (generally, all arguments given to `terraform plan` can also be given to `terraform apply`).
 >
 > `terraform refresh` can be used to refresh and apply the state to the state file directly without reviewing it. This is most similar to what is actually done by `terraform plan` before generating the actual plan.
 
