@@ -88,7 +88,7 @@ This part will focus on **Terraform state fundamentals** and **basic state manip
 
 Terraform uses state to map resource configurations to real-world infrastructure. The state file (`terraform.tfstate`) is a JSON file that contains the current state of your infrastructure. It is essential for Terraform to function correctly, as it allows Terraform to track resources and their dependencies. It will not contain all resources, only the resources Terraform know about.
 
-The state file can contain sensitive information, so it should be stored securely. Terraform 1.10 inroduced ephemerality, with the special `ephemeral` block, that solves some issues related to sensitive information. You can read more about it [in the docs](https://developer.hashicorp.com/terraform/language/resources/ephemeral).
+The state file can contain sensitive information, so it should be stored securely. Terraform 1.10 introduced ephemerality, with the special `ephemeral` block, that solves this issue partially by not storing secrets in state. You can read more about it [in the docs](https://developer.hashicorp.com/terraform/language/resources/ephemeral).
 
 Let's start with a simple example of a monolithic configuration. We've provided a starter configuration in `infra/main.tf` that creates a couple of networks, DNS records and service accounts.
 
@@ -138,7 +138,7 @@ Terraform has two mechanisms for changing the address of a resource. `terraform 
 
 5. The `moved` blocks and `terraform state` commands also work on maps and lists of objects, such as `google_compute_subnetwork.subnets` (which has 3 resources). We'll do the same operation, but this time we'll start with the `moved` block.
 
-   Start by changing the address of the resources from `subnets` to `subnets_renamed`, and optionally run `terraform plan` to view what happens. Then create a `moved` block that renames the addresses in the state file. Run `terraform plan` to verify that there are no changes other than the three address changes.
+   Modify the address of the resources from `subnets` to `subnets_renamed` (in `main.tf`), and optionally run `terraform plan` to see what happens. Then create a `moved` block that renames the addresses in the state file. Run `terraform plan` to verify that there are no changes other than the three address changes.
 
 6. Apply the configuration before undoing the changes in the configuration file. Running `terraform plan` should show 3 added and 3 destroyed resources. Use `terraform state mv` to fix the state file, and run `terraform plan` to verify that there are no changes.
 
@@ -181,7 +181,7 @@ Terraform has a [style guide](https://developer.hashicorp.com/terraform/language
 
 3. You should now have files named `terraform.tf`, `providers.tf`, `variables.tf` and `main.tf`.
 
-4. The the remaining resources in `main.tf` can split into files based on their function (e.g., `dns.tf`, `network.tf`, etc.), if you want to.
+4. The remaining resources in `main.tf` can split into files based on their function (e.g., `dns.tf`, `network.tf`, etc.), if you want to.
 
 5. When you're done, run `terraform plan` to verify that there are no changes to the configuration.
 
@@ -201,9 +201,10 @@ With remote state, Terraform writes the state data to a remote data store, which
   gcloud storage buckets create gs://<bucket_name> --project=cloud-labs-workshop-42clws --location=europe-west1
   ```
 
-  <bucket_name> can be any globally unique string, we recommend <your_prefix>\_state_storage<random_string>. The <random_string> should be 4-6 random lower case letters or numbers.
+  `<bucket_name>` can be any globally unique string, we recommend `<your_prefix>_state_storage_<random_string>`. The `<random_string>` should be 4-6 random lower case letters or numbers.
 
   - Update the Terraform configuration to use the provisioned bucket as a backend:
+
     ```hcl
     terraform {
       backend "gcs" {
@@ -212,20 +213,25 @@ With remote state, Terraform writes the state data to a remote data store, which
       }
     }
     ```
+
   - Run `terraform init` and migrate the state to the bucket.
-  - verify that the state is located in gcloud storage bucket:
+  - Verify that the state is located in storage bucket (`<prefix>` is defined as `terraform/tfstate` above):
+
     ```bash
-    gcloud storage ls gs://<BUCKET_NAME>/<PREFIX>
+    gcloud storage ls gs://<bucket_name>/<prefix>
     ```
-  - If you want to view the contents of the state file run `gcloud storage cat <PATH_TO_STATE_FILE>`
+
+  - If you want to view the contents of the state file run `gcloud storage cat <path_to_state_file>`. The path to the state file is found in the output of the previous command.
 
 #### State Locking with GCS
 
 As long as the backend supports state locking, Terraform will lock your state for all operations that could write state. This will prevent others from acquiring the lock and potentially corrupting your state. Since GCS supports state locking, this happens automatically on all operations that could write state. This is especially important when working in a team or when automated workflows (such as CI/CD pipelines) may run Terraform simultaneously, as it ensures only one operation can modify the state at a time.
 
 - State lock can be verified by:
-  - Try changing the "google_dns_managed_zone.private_zone" resource name and run `terraform apply` but leave it on approval prompt and then, in another terminal, run `terraform plan`. You should see that the state file is locked by the `terraform apply` operation.
-- **Documentation Link:** [GCS Remote Backend](https://developer.hashicorp.com/terraform/language/settings/backends/gcs)
+
+  - Try changing the `google_dns_managed_zone.private_zone` resource name and run `terraform apply` but leave it on approval prompt and then, in another terminal, run `terraform plan`. You should see that the state file is locked by the `terraform apply` operation.
+
+- Also see [GCS remote backend docs](https://developer.hashicorp.com/terraform/language/settings/backends/gcs) for more info.
 
 ## 4. Refactoring for modularization
 
@@ -301,7 +307,7 @@ The design of the `network` module can be improved, we'll get back to ways to do
 
 For the DNS configuration, we'll only create a module for creating a single DNS A record, leaving the DNS zone in the root module.
 
-1. Following similar steps to creating the `network` module, create `dns_a_record` module. This module should have three `string` variable inputs `name`, `zone_name` and `ipv4_address`, and create a single `google_dns_record_set` resource.
+1. Following similar steps to creating the `network` module, create `dns_a_record` module. This module should have three `string` variable inputs `name`, `zone_name` and `ipv4_address`, and create a single `google_dns_record_set` resource. You will need to modify the resource to use the new variables.
 
 2. We can then use a loop with the `count` meta-argument in the root module when we call the module:
 
@@ -455,7 +461,7 @@ You should now be able to automate terraform plan on PR.
 
 ### Track G: Checks, validation and assertions
 
-Terraform has [a type system](https://developer.hashicorp.com/terraform/language/expressions/types), covering basic funcitonality. It allows for type constraints in the configuration. Additionally, the language has support for different types of [custom conidtions](https://developer.hashicorp.com/terraform/language/expressions/custom-conditions) to validate assumptions and provide error messages.
+Terraform has [a type system](https://developer.hashicorp.com/terraform/language/expressions/types), covering basic functionality. It allows for type constraints in the configuration. Additionally, the language has support for different types of [custom conditions](https://developer.hashicorp.com/terraform/language/expressions/custom-conditions) to validate assumptions and provide error messages.
 
 
 #### G.1 Input validation
@@ -501,7 +507,7 @@ The `network` module has two `list(string)`  input variables, `regions` and `sub
 
 
 4. For the purposes of this workshop, we can do a different refactoring to illustrate multiple validation blocks: Let's combine the `regions` and `subnet_cidrs` variables into a `subnets` variable with type `object({ regions = list(string), cidrs = list(string) })`. 
-    a. Remove the validation from the previous step, and modify the validation from the first step to work with the new variable type. Also update the module and the calling code to work with the new variable type defintion. Make sure `terraform plan` succeeds without modifications.
+    a. Remove the validation from the previous step, and modify the validation from the first step to work with the new variable type. Also update the module and the calling code to work with the new variable type definition. Make sure `terraform plan` succeeds without modifications.
     b. Add a second validation block to the `subnets` variable that verifies that the two lists have the same length. Add an appropriate error message.
     c. Verify that the validation fails if the number of regions and CIDRs are not the same.
 
@@ -530,7 +536,7 @@ The `network` module has two `list(string)`  input variables, `regions` and `sub
 
     Apply the changes to the configuration.
 
-3. To see the check from the previous step, you can run `terraform destroy` to deprovision the resources and then apply the configuration again. Note how it gives you a warning during the `plan` step, since the managed zone does not exist yet. Terraform will still provision the DNS records however, indepent of the state of the checks.
+3. To see the check from the previous step, you can run `terraform destroy` to remove the resources and then apply the configuration again. Note how it gives you a warning during the `plan` step, since the managed zone does not exist yet. Terraform will still provision the DNS records however, independent of the state of the checks.
 
 <!-- TODO
 ### Track G: Creating reusable modules
