@@ -2,83 +2,71 @@
 
 ## Getting started
 
-- Verification of prerequisites (Terraform CLI, Google Cloud account setup)
-
 ### Installing prerequisites
 
-Install Terraform CLI, and Google Cloud SDK.
+**Platform-specific setup guides:**
+- **Windows users:** See [WINDOWS.md](WINDOWS.md)
+- **macOS users:** See [MACOS.md](MACOS.md) 
+- **Linux users:** See [LINUX.md](LINUX.md)
 
-#### Terraform
+### Google Cloud Authentication
 
-This will provide the `terraform` binary.
-
-- Windows: Download from [the official installation page](https://developer.hashicorp.com/terraform/install) and follow the installation instructions.
-- Windows (chocolatey): Run `choco install terraform`.
-- macOS: Use Homebrew with `brew install terraform`.
-- Linux: Go to the [official installation page](https://developer.hashicorp.com/terraform/install) and follow the instructions for your distribution.
-
-#### Google Cloud SDK
-
-This will provide the `gcloud` binary.
-
-- Windows: Download from [the official installation page](https://cloud.google.com/sdk/docs/install#windows) and follow the installation instructions.
-- Windows (chocolatey): Run `choco install gcloudsdk`.
-- macOS: Use Homebrew with `brew install --cask google-cloud-sdk`.
-- Linux: Go to the [official installation page](https://cloud.google.com/sdk/docs/install) and follow the instructions for your distribution.
-
-### Login to Google Cloud
-
-#### Console
-
+#### Google Cloud Console
 1. Go to [Google Cloud Console](https://console.cloud.google.com/) and log in with your Google account.
-2. Grab the project ID of the project you will be using for the workshop. You can find it in the project dashboard or by clicking on the project name in the top navigation bar.
+2. Note the project ID you'll be using for the workshop.
 
-#### gcloud
-
-In a terminal, run the following command to log in:
+#### gcloud Authentication
+In your terminal, run the following commands:
 
 ```bash
+# Log in to Google Cloud
 gcloud auth login
-```
 
-This will open a web browser for you to log in with your Google account. After logging in, you will be prompted to select a project. Choose the project you will be using for the workshop.
-
-If you're not prompted to select a project, set the project with:
-
-```bash
+# Set the workshop project (if not prompted during login)
 gcloud config set project cloud-labs-workshop-42clws
-```
 
-Then run:
-
-```bash
+# Set up application default credentials for Terraform
 gcloud auth application-default login
-```
 
-To verify your project, run:
-
-```bash
+# Verify your setup
 gcloud config list
 ```
 
+### Setup Verification
+
+Before starting the workshop, run the setup verification script for your platform:
+
+```bash
+# Linux/macOS
+./verify-setup.sh
+
+# Windows PowerShell
+.\verify-setup.ps1
+```
+
+These scripts will check that you have all required tools installed and properly configured.
+
+### Troubleshooting Setup Issues
+
+If you encounter issues during setup, consult your platform-specific guide for detailed troubleshooting steps.
+
+### Cross-Platform Compatibility
+
+**All Terraform, gcloud, and git commands work identically across platforms.** Throughout this workshop, "terminal" refers to any command-line interface (Terminal on macOS/Linux, Command Prompt/PowerShell on Windows, etc.).
+
+## Workshop Overview
+
+This workshop is designed for intermediate to advanced Terraform users. You'll learn advanced concepts through hands-on exercises covering:
+
+- **State management fundamentals** - Understanding and manipulating Terraform state
+- **Remote state backends** - Setting up shared state storage and locking
+- **Modularization** - Refactoring monolithic configurations into reusable modules
+- **Advanced validation** - Using checks, validations, and type constraints
+- **Choose-your-own-adventure tracks** - Deep dives into specialized topics
+
+**Prerequisites:** Familiarity with basic Terraform concepts (resources, variables, outputs) and HCL syntax.
+
 ## Part 1: State management and modularization
-
-<!--
-### State Management Fundamentals (45 minutes)
-- Deep dive into Terraform state structure
-- Hands-on exercise: Inspecting state with `terraform state list` and `terraform state show`
-- Understanding state locking and why it matters
-
-### State Manipulation Workshop (60 minutes)
-- Practical exercise: Renaming resources using `terraform state mv`
-- Hands-on task: Moving resources between configurations
-- Lab: Resolving common state conflicts and drift scenarios
-
-### Remote State Migration (45 minutes)
-- Setting up a Google Cloud Storage (GCS) bucket for state storage
-- Hands-on exercise: Migrating local state to GCS backend
-- Configuring state locking with GCS object versioning
--->
 
 This part will focus on **Terraform state fundamentals** and **basic state manipulation**.
 
@@ -92,26 +80,26 @@ The state file can contain sensitive information, so it should be stored securel
 
 Let's start with a simple example of a monolithic configuration. We've provided a starter configuration in `infra/main.tf` that creates a couple of networks, DNS records and service accounts.
 
-- Create a new file `infra/terraform.auto.tfvars` with the following content:
+1. Create a new file `infra/terraform.auto.tfvars` with the following content:
 
-  ```hcl
-  name_prefix = "<your-unique-prefix>"
-  project_id = "cloud-labs-workshop-42clws"
-  ```
+```hcl
+name_prefix = "<your-unique-prefix>"
+project_id = "cloud-labs-workshop-42clws"
+```
 
-  Your `name_prefix` should be unique to avoid collisions with other participants. If you run the workshop in your own project, replace the `project_id` accordingly.
+Your `name_prefix` should be unique to avoid collisions with other participants. If you run the workshop in your own project, replace the `project_id` accordingly.
 
-- Run `terraform init` and `terraform apply` in the `infra/` folder to provision the resources. Contact a workshop facilitator if you have any troubles.
+1. Run `terraform init` and `terraform apply` in the `infra/` folder to provision the resources.
 
 The previous commands will have created a `.terraform/` directory, a `.terraform.lock.hcl` and a `terraform.tfstate` file. `.terraform.lock.hcl` is the only file that should be committed. `.terraform/` contain downloaded providers and modules.
 
-- Open `terraform.tfstate` in your favorite text editor. You will see a JSON file with the current state of your infrastructure. The `resources` key contains a list of all resources managed by Terraform, along with their attributes and metadata.
+1. Open `terraform.tfstate` in your favorite text editor. You will see a JSON file with the current state of your infrastructure. The `resources` key contains a list of all resources managed by Terraform, along with their attributes and metadata.
 
-- `terraform.tfstate` contains many attributes that are not relevant. Run `terraform state list` to see a list of all resources managed by Terraform. You will see a list of resources with their addresses, such as `google_compute_network.vpc` and `google_dns_record_set.records[2]`.
+1. `terraform.tfstate` contains many attributes that are not relevant. Run `terraform state list` to see a list of all resources managed by Terraform. You will see a list of resources with their addresses, such as `google_compute_network.vpc` and `google_dns_record_set.records[2]`.
 
-- Run `terraform state show google_compute_network.vpc` to see the details of the `google_compute_network.vpc` resource. You will see a list of all attributes and their values, including the `id`, `name`, `auto_create_subnetworks`, and `project`.
+1. Run `terraform state show google_compute_network.vpc` to see the details of the `google_compute_network.vpc` resource. You will see a list of all attributes and their values, including the `id`, `name`, `auto_create_subnetworks`, and `project`.
 
-- Run `terraform show` to display the attributes of all Terraform-managed resources.
+1. Run `terraform show` to display the attributes of all Terraform-managed resources.
 
 ### 1.2: Basic state manipulation
 
@@ -121,9 +109,9 @@ Terraform has two mechanisms for changing the address of a resource. `terraform 
 
 1. Run `terraform state mv google_compute_network.vpc google_compute_network.vpc_renamed` to rename the `google_compute_network.vpc` resource to `google_compute_network.vpc_renamed`. This will update the state file, but not the configuration.
 
-2. Run `terraform plan` to examine how Terraform wishes to fix the configuration drift between the state file and the configuration file. Note especially how this affects dependant resources, like the subnets and the DNS zone. Do not apply this configuration!
+1. Run `terraform plan` to examine how Terraform wishes to fix the configuration drift between the state file and the configuration file. Note especially how this affects dependant resources, like the subnets and the DNS zone. Do not apply this configuration!
 
-3. Let's fix the state file with a [`moved` block](https://developer.hashicorp.com/terraform/language/moved):
+1. Let's fix the state file with a [`moved` block](https://developer.hashicorp.com/terraform/language/moved):
 
    ```hcl
    moved {
@@ -134,13 +122,30 @@ Terraform has two mechanisms for changing the address of a resource. `terraform 
 
    Examine the output of `terraform plan` again. It should show the change to the state file, but also say "Plan: 0 to add, 0 to change, 0 to destroy" since this involves no actual changes.
 
-4. Apply the configuration (using `terraform apply`) before continuing. Then remove the `moved` block from the configuration.
+1. Apply the configuration (using `terraform apply`) before continuing. Then remove the `moved` block from the configuration.
 
-5. The `moved` blocks and `terraform state` commands also work on maps and lists of objects, such as `google_compute_subnetwork.subnets` (which has 3 resources). We'll do the same operation, but this time we'll start with the `moved` block.
+1. The `moved` blocks and `terraform state` commands also work on maps and lists of objects, such as `google_compute_subnetwork.subnets` (which has 3 resources). We'll do the same operation, but this time we'll start with the `moved` block.
 
-   Modify the address of the resources from `subnets` to `subnets_renamed` (in `main.tf`), and optionally run `terraform plan` to see what happens. Then create a `moved` block that renames the addresses in the state file. Run `terraform plan` to verify that there are no changes other than the three address changes.
+   Start by changing the resource name in the configuration from `subnets` to `subnets_renamed` in `main.tf`:
 
-6. Apply the configuration before undoing the changes in the configuration file. Running `terraform plan` should show 3 added and 3 destroyed resources. Use `terraform state mv` to fix the state file, and run `terraform plan` to verify that there are no changes.
+   ```hcl
+   resource "google_compute_subnetwork" "subnets_renamed" {
+     # ... existing configuration
+   }
+   ```
+
+   Then create a `moved` block that handles the rename in state:
+
+   ```hcl
+   moved {
+     from = google_compute_subnetwork.subnets
+     to   = google_compute_subnetwork.subnets_renamed
+   }
+   ```
+
+   Run `terraform plan` to verify that there are no infrastructure changes, only state address changes.
+
+1. Apply the configuration before reverting the resource name back to `subnets` in the configuration file. After reverting, running `terraform plan` should show 3 resources to be added and 3 to be destroyed. Use `terraform state mv google_compute_subnetwork.subnets_renamed google_compute_subnetwork.subnets` to fix the state file, and run `terraform plan` to verify that there are no changes.
 
 You can read more about the available [state manipulation commands](https://developer.hashicorp.com/terraform/cli/commands/state).
 
@@ -154,15 +159,15 @@ You can trigger a refresh manually with `terraform refresh` or using the `-refre
 
 1. Next, go into the Google Cloud Console, and search for "VPC networks" in the top middle search bar. Click on the "VPC networks" link and find your VPC in the list. Click "Subnets" in the menu bar, and delete one of the subnets listed.
 
-2. Let's see the effect of refreshing the state.
+1. Let's see the effect of refreshing the state.
 
    1. Run `terraform plan -refresh=false`. You should not see any changes to be applied since the state file and configuration files are in sync.
-   2. Run `terraform plan -refresh-only -out=plan.tfplan`. You can see from the output which resources Terraform refreshes the status of. Terraform will generate a plan to update the state file.
-   3. Run `terraform apply plan.tfplan`. To apply the changes to the state file.
-   4. (Optional) You can compare the state file by looking at the difference between of `terraform.tfstate` and `terraform.tfstate.backup`.
-   5. Run `terraform plan -refresh=false` again. Terraform will now detect a difference between the state file and the configuration. Terraform will show the plan to change the real-world state back to the desired state decided by the configuration.
+   1. Run `terraform plan -refresh-only -out=plan.tfplan`. You can see from the output which resources Terraform refreshes the status of. Terraform will generate a plan to update the state file.
+   1. Run `terraform apply plan.tfplan`. To apply the changes to the state file.
+   1. (Optional) You can compare the state file by looking at the difference between of `terraform.tfstate` and `terraform.tfstate.backup`.
+   1. Run `terraform plan -refresh=false` again. Terraform will now detect a difference between the state file and the configuration. Terraform will show the plan to change the real-world state back to the desired state decided by the configuration.
 
-3. Run `terraform apply` and apply the configuration to get the infrastructure back to the desired state.
+1. Run `terraform apply` and apply the configuration to get the infrastructure back to the desired state.
 
 > [!NOTE]
 > `terraform apply -refresh-only` will give the option to update the state file without generating an intermediate state file (generally, all arguments given to `terraform plan` can also be given to `terraform apply`).
@@ -177,15 +182,17 @@ Terraform has a [style guide](https://developer.hashicorp.com/terraform/language
 
 1. Look up the [file names section in the style guide](https://developer.hashicorp.com/terraform/language/style#file-names).
 
-2. Move all the non-resource blocks (variables, providers, etc.) into their respective files.
+1. Move all the non-resource blocks (variables, providers, etc.) into their respective files.
 
-3. You should now have files named `terraform.tf`, `providers.tf`, `variables.tf` and `main.tf`.
+1. You should now have files named `terraform.tf`, `providers.tf`, `variables.tf` and `main.tf`.
 
-4. The remaining resources in `main.tf` can split into files based on their function (e.g., `dns.tf`, `network.tf`, etc.), if you want to.
+1. The remaining resources in `main.tf` can split into files based on their function (e.g., `dns.tf`, `network.tf`, etc.), if you want to.
 
-5. When you're done, run `terraform plan` to verify that there are no changes to the configuration.
+1. When you're done, run `terraform plan` to verify that there are no changes to the configuration.
 
-## 3. **Remote State Migration**
+<!-- TODO: Resource targeting -->
+
+## Part 2: Remote State Migration
 
 #### Why Use Remote State?
 
@@ -193,7 +200,7 @@ By default, Terraform stores the state locally in a `terraform.tfstate` file. Wh
 
 With remote state, Terraform writes the state data to a remote data store, which can be shared between all members of a team. Remote state can be implemented by storing state in Amazon S3, Azure Blob Storage, Google Cloud Storage and more. Terraform configures the remote storage a [`backend` block](https://developer.hashicorp.com/terraform/language/backend).
 
-### 3.1: Create a GCS bucket for remote state storage:
+### 2.1: Create a GCS bucket for remote state storage:
 
 - Run the following command to create a GCS bucket:
 
@@ -215,10 +222,11 @@ With remote state, Terraform writes the state data to a remote data store, which
     ```
 
   - Run `terraform init` and migrate the state to the bucket.
-  - Verify that the state is located in storage bucket (`<prefix>` is defined as `terraform/tfstate` above):
+
+  - Verify that the state is located in storage bucket (`<prefix>` is defined as `terraform/state` above):
 
     ```bash
-    gcloud storage ls gs://<bucket_name>/<prefix>
+    gcloud storage ls gs://<bucket_name>/terraform/state
     ```
 
   - If you want to view the contents of the state file run `gcloud storage cat <path_to_state_file>`. The path to the state file is found in the output of the previous command.
@@ -229,15 +237,15 @@ As long as the backend supports state locking, Terraform will lock your state fo
 
 - State lock can be verified by:
 
-  - Try changing the `google_dns_managed_zone.private_zone` resource name and run `terraform apply` but leave it on approval prompt and then, in another terminal, run `terraform plan`. You should see that the state file is locked by the `terraform apply` operation.
+  - Try changing the `google_dns_managed_zone.private_zone` resource name and run `terraform apply` but leave it on approval prompt and then, **in another terminal window**, run `terraform plan`. You should see that the state file is locked by the `terraform apply` operation.
 
 - Also see [GCS remote backend docs](https://developer.hashicorp.com/terraform/language/settings/backends/gcs) for more info.
 
-## 4. Refactoring for modularization
+## Part 3: Refactoring for modularization
 
 Terraform [modules](https://developer.hashicorp.com/terraform/language/modules) improve code reuse, organization and readability. Modules can be used to create reusable components in a repository or create a library of reusable components shared between teams.
 
-### 4.1. The `network` module
+### 3.1. The `network` module
 
 We'll start with a `network` module that is responsible for creating both the VPC and the subnets. We'll also have to take care to not modify the existing resources, and will use the [`moved` block](https://developer.hashicorp.com/terraform/language/moved) to avoid actual changes to the infrastructure.
 
@@ -245,11 +253,11 @@ Modules are defined in their own directory, and can be used by referencing the m
 
 1. Create the `modules/network` directory at the repository root.
 
-2. Create `modules/network/main.tf` and move the `google_compute_network` and `google_compute_subnetwork` resources into it.
+1. Create `modules/network/main.tf` and move the `google_compute_network` and `google_compute_subnetwork` resources into it.
 
-3. We'll need to pass variable definitions to the module. Modules follow the same naming conventions Create `modules/network/variables.tf` and copy the required variables from `variables.tf` into it (`name_prefix`, `regions`, `subnet_cidrs` from `variables.tf`). Remove the variable defaults, if any.
+1. We'll need to pass variable definitions to the module. Modules follow the same naming conventions Create `modules/network/variables.tf` and copy the required variables from `variables.tf` into it (`name_prefix`, `regions`, `subnet_cidrs` from `variables.tf`). Remove the variable defaults, if any.
 
-4. Other resources need to reference the VPC id, so we'll need a output. Create `modules/network/outputs.tf` with the following content:
+1. Other resources need to reference the VPC id, so we'll need a output. Create `modules/network/outputs.tf` with the following content:
 
    ```hcl
    output "vpc_id" {
@@ -258,7 +266,7 @@ Modules are defined in their own directory, and can be used by referencing the m
    }
    ```
 
-5. Add a `module` block to replace the previous network configuration file to call the module:
+1. Add a `module` block to replace the previous network configuration file to call the module:
 
    ```hcl
    module "network" {
@@ -275,9 +283,9 @@ Modules are defined in their own directory, and can be used by referencing the m
    network_url = module.network.vpc_id
    ```
 
-6. Run `terraform init` and then `terraform plan` to verify that the changes are syntactically correct. Fix errors before continuing. Note that the plan will show changes to the infrastructure! But, can do this without changes to the infrastructure by using the `moved` block.
+1. Run `terraform init` and then `terraform plan` to verify that the changes are syntactically correct. Fix errors before continuing. Note that the plan will show changes to the infrastructure! But, can do this without changes to the infrastructure by using the `moved` block.
 
-7. When moving between modules, the `moved` block must be in the module you moved from (in this case the root module). Add this `moved` block in the same file as the module declaration:
+1. When moving between modules, the `moved` block must be in the module you moved from (in this case the root module). Add this `moved` block in the same file as the module declaration:
 
    ```hcl
    moved {
@@ -294,22 +302,32 @@ Modules are defined in their own directory, and can be used by referencing the m
 
    Run `terraform plan` again and verify that there are no changes, except moving resources.
 
-8. Apply the moves with `terraform apply`. This will move the resources in the state file without changing the infrastructure. Run `terraform plan` and see that the moves are no longer planned actions.
+1. Apply the moves with `terraform apply`. This will move the resources in the state file without changing the infrastructure. Run `terraform plan` and see that the moves are no longer planned actions.
 
-9. Delete the `moved` block from the configuration file.
+1. Delete the `moved` block from the configuration file.
 
 > [!CAUTION]
 > Removing `moved` blocks in shared modules can cause breaking changes to consumers that haven't applied the move actions yet. This is not a problem here since we're the only consumer of the module. Read more [in the docs](https://developer.hashicorp.com/terraform/language/modules/develop/refactoring#removing-moved-blocks).
 
 The design of the `network` module can be improved, we'll get back to ways to do that in the extra tasks section later in the workshop.
 
-### 4.2. The `dns_a_record` module
+### 3.2. The `dns_a_record` module
 
 For the DNS configuration, we'll only create a module for creating a single DNS A record, leaving the DNS zone in the root module.
 
-1. Following similar steps to creating the `network` module, create `dns_a_record` module. This module should have three `string` variable inputs `name`, `zone_name` and `ipv4_address`, and create a single `google_dns_record_set` resource. You will need to modify the resource to use the new variables.
+1. Following similar steps to creating the `network` module, create `dns_a_record` module. This module should have three `string` variable inputs `name`, `zone_name` and `ipv4_address`, and create a single `google_dns_record_set` resource named `record`. You will need to modify the resource to use the new variables:
 
-2. We can then use a loop with the `count` meta-argument in the root module when we call the module:
+   ```hcl
+   resource "google_dns_record_set" "record" {
+     name         = var.name
+     type         = "A"
+     ttl          = 300
+     managed_zone = var.zone_name
+     rrdatas      = [var.ipv4_address]
+   }
+   ```
+
+1. We can then use a loop with the `count` meta-argument in the root module when we call the module:
 
    ```hcl
    module "records" {
@@ -321,7 +339,7 @@ For the DNS configuration, we'll only create a module for creating a single DNS 
    }
    ```
 
-3. When refactoring resources that use looping this way, we need to use a moved block per resource:
+1. When refactoring resources that use looping this way, we need to use a moved block per resource:
 
    ```hcl
    moved {
@@ -340,13 +358,13 @@ For the DNS configuration, we'll only create a module for creating a single DNS 
    }
    ```
 
-4. Verify that the only actions are to move state, and apply the changes before removing the `moved` blocks.
+1. Verify that the only actions are to move state, and apply the changes before removing the `moved` blocks.
 
-### 4.3. The `service_account` module
+### 3.3. The `service_account` module
 
 The `service_account` module is a bit different, since it creates multiple resources using loops. The logic could be greatly simplified if we designed to module to create a service account, and assign it a set of roles.
 
-The `service_account` module should have variables `account_id`, `display_name`, `description`, `project_id` and `roles`. I.e, we want a that can replace the current looping logic with a module call similar to this:
+The `service_account` module should have variables `account_id`, `display_name`, `description`, `project_id` and `roles`. I.e, we want a module that can replace the current looping logic with a module call similar to this:
 
 ```hcl
 module "service_accounts" {
@@ -363,7 +381,7 @@ module "service_accounts" {
 
 1. Create the `service_account` module in `modules/service_account` and use it. _Note:_ This refactoring is not required to complete future tasks, and feel free to skip it or come back to it later if you want to.
 
-## Part 3: Optional Deep-Dive Tracks (Choose Your Own Adventure - 5 hours)
+## Part 4: Optional Deep-Dive Tracks (Choose Your Own Adventure)
 
 ### Track A: Multi-Environment Management
 
@@ -387,9 +405,9 @@ Go to [Terraform Cloud](https://app.terraform.io) and create a free account. Onc
 
 A workspace in HCP Terraform contains infrastructure resources, variables, state data, and run history. HCP Terraform offers a VCS-driven workflow that automatically triggers runs based on changes to your VCS repositories. The VCS-driven workflow enables collaboration within teams by establishing your shared repositories as the source of truth for infrastructure configuration. Complete the following steps to create a workspace:
 
-1.  After selecting an organization, click _New_ and choose _Workspace_ from the dropdown-menu.
-2.  Choose a project to create the workspace in, and click _create_.
-3.  Configure the backend to let Terraform Cloud manage your state:
+1. After selecting an organization, click _New_ and choose _Workspace_ from the dropdown-menu.
+1. Choose a project to create the workspace in, and click _create_.
+1. Configure the backend to let Terraform Cloud manage your state:
 
 ```hcl
 terraform {
@@ -416,13 +434,13 @@ In the directory of your source code, update the remote endpoint URL for your re
 To connect your workspace with your new GitHub repository, follow the steps below:
 
 1. In your workspace, click on VCS workflow and choose an existing version control provider from the list or configure a new system. If you choose Github App,choose an organization and repository when prompted. You can choose your own private repositories by clicking on _add_another_organization_ and selecting your github account.
-2. Under advanced options, set the Terraform Working Directory to _infra_ and click Create.
+1. Under advanced options, set the Terraform Working Directory to _infra_ and click Create.
 
 Terraform Cloud also needs access to Google Cloud resources to be able to run necessary changes. We therefore need to add a workspace variable called GOOGLE_CREDENTIALS containing a service account key.
 
 1. Go to Google Cloud -> IAM & ADMIN -> Service Accounts and locate the terraform cloud service account (terraform-cloud-sa-clws@cloud-labs-workshop-42clws.iam.gserviceaccount.com)
-2. Under Actions, click on Manage keys and choose create new key under the Add key dropdown
-3. Head over to Terraform Cloud and under your workspace variables, add a variable named GOOGLE_CREDENTIALS with the service account key as value.
+1. Under Actions, click on Manage keys and choose create new key under the Add key dropdown
+1. Head over to Terraform Cloud and under your workspace variables, add a variable named GOOGLE_CREDENTIALS with the service account key as value.
 
 You should now be able to automate terraform plan on PR.
 
@@ -463,89 +481,97 @@ You should now be able to automate terraform plan on PR.
 
 Terraform has [a type system](https://developer.hashicorp.com/terraform/language/expressions/types), covering basic functionality. It allows for type constraints in the configuration. Additionally, the language has support for different types of [custom conditions](https://developer.hashicorp.com/terraform/language/expressions/custom-conditions) to validate assumptions and provide error messages.
 
-
 #### G.1 Input validation
 
-The `network` module has two `list(string)`  input variables, `regions` and `subnet_cidrs`, that are expected to be of the same length. Let's look at different ways of verifying this. First, let's get an introduction to variable validation.
-
+The `network` module has two `list(string)` input variables, `regions` and `subnet_cidrs`, that are expected to be of the same length. Let's look at different ways of verifying this. First, let's get an introduction to variable validation.
 
 1. The `subnet_cidrs` is of type `list(string)`, we would like to validate that the ranges specified are valid. We can use a `validation` block inside our `variable` declaration. This would look like this:
 
-    ```hcl
-    variable "subnet_cidrs" {
-      description = "CIDR ranges for subnets"
-      type        = list(string)
+   ```hcl
+   variable "subnet_cidrs" {
+     description = "CIDR ranges for subnets"
+     type        = list(string)
 
-      validation {
-        condition     = alltrue([for cidr in var.subnet_cidrs : can(cidrhost(cidr, 255))])
-        error_message = "At least one of the specified subnets were too small, or one of the CIDR range was invalid. The subnets needs to contain at least 256 IP addresses (/24 or larger)."
-      }
-    }
-    ```
+     validation {
+       condition     = alltrue([for cidr in var.subnet_cidrs : can(cidrhost(cidr, 255))])
+       error_message = "At least one of the specified subnets were too small, or one of the CIDR range was invalid. The subnets needs to contain at least 256 IP addresses (/24 or larger)."
+     }
+   }
+   ```
 
-    We added the `validation` block, the rest should be like before. Let's explain what's going on here:
+   We added the `validation` block, the rest should be like before. Let's explain what's going on here:
 
-    - The `condition` is a boolean expression that must be true for the validation to pass.
-    - [`alltrue`](https://developer.hashicorp.com/terraform/language/functions/alltrue) is a function that returns true if all elements in the list are true.
-    - `for` is a [for expression](https://developer.hashicorp.com/terraform/language/expressions/for) that iterates over the list of CIDR ranges and checks if each one is valid using the `cidrhost` function.
-    - We can refer to the variable being validated with the same syntax as before: `var.subnet_cidrs`.
-    - [The `can` function](https://developer.hashicorp.com/terraform/language/functions/can) is a special function that returns true if the expression can be evaluated without errors. I.e., if `cidrhost` returns an error due to an invalid or to small IP address range, `can` will return false.
-    - If `condition` evaluates to false, the plan fails and the `error_message` will be printed.
+   - The `condition` is a boolean expression that must be true for the validation to pass.
+   - [`alltrue`](https://developer.hashicorp.com/terraform/language/functions/alltrue) is a function that returns true if all elements in the list are true.
+   - `for` is a [for expression](https://developer.hashicorp.com/terraform/language/expressions/for) that iterates over the list of CIDR ranges and checks if each one is valid using the `cidrhost` function.
+   - We can refer to the variable being validated with the same syntax as before: `var.subnet_cidrs`.
+   - [The `can` function](https://developer.hashicorp.com/terraform/language/functions/can) is a special function that returns true if the expression can be evaluated without errors. I.e., if `cidrhost` returns an error due to an invalid or to small IP address range, `can` will return false.
+   - If `condition` evaluates to false, the plan fails and the `error_message` will be printed.
 
-    *Add the validation* try to provoke a validation error by specifying a smaller IP address range (e.g., a `/25`) or specifying an invalid IP address. Make sure the code works again before moving to the next step.
-
+   *Add the validation* try to provoke a validation error by specifying a smaller IP address range (e.g., a `/25`) or specifying an invalid IP address. Make sure the code works again before moving to the next step.
 
 > [!NOTE]
-> For the following steps we will write the same code in different ways, so you might want to commit (or make a copy) of your code, in order to be able to revert later. If you've already done the tasks in Track D <!-- TODO: Not written, ensure correct reference later --> you might want to revert your changes to the network module.
+> For the following steps we will write the same code in different ways, so you might want to commit (or make a copy) of your code, in order to be able to revert later. If you've already done the tasks in Track D you might want to revert your changes to the network module.
 
-2. Depending on your use case, the best way might be to combine the variables into a structured type containing a list of objects with the properties `region` and `cidr` (the type definition would be `list(object({ region = string, cidr = string}))`. This would use the type system to ensure the assumptions are always correct. In Track <!-- TODO: Not written-->we do this refactoring, and will not repeat it here.
+2. Depending on your use case, the best way might be to combine the variables into a structured type containing a list of objects with the properties `region` and `cidr` (the type definition would be `list(object({ region = string, cidr = string}))`). This would use the type system to ensure the assumptions are always correct. In Track D we cover this refactoring approach, and will not repeat it here.
 
-3. Terraform 1.9.0 (released June, 2024) introduced [general expressions and cross-object references in input variable validations](https://www.hashicorp.com/en/blog/terraform-1-9-enhances-input-variable-validations). This lets us refer to different variables, locals and more during validation.
+1. Terraform 1.9.0 (released June, 2024) introduced [general expressions and cross-object references in input variable validations](https://www.hashicorp.com/en/blog/terraform-1-9-enhances-input-variable-validations). This lets us refer to different variables, locals and more during validation.
 
-    a. Add a new validation to either the `regions` or the `subnet_cidrs` variable to ensure that the two lists are of equal lengths. The condition should be  `length(var.regions) == length(var.subnet_cidrs)`.
-    b. Verify that the validation fails if the number of regions and CIDRs are not the same.
+   a. Add a new validation to either the `regions` or the `subnet_cidrs` variable to ensure that the two lists are of equal lengths. The condition should be `length(var.regions) == length(var.subnet_cidrs)`.
+   b. Verify that the validation fails if the number of regions and CIDRs are not the same.
 
-
-4. For the purposes of this workshop, we can do a different refactoring to illustrate multiple validation blocks: Let's combine the `regions` and `subnet_cidrs` variables into a `subnets` variable with type `object({ regions = list(string), cidrs = list(string) })`. 
-    a. Remove the validation from the previous step, and modify the validation from the first step to work with the new variable type. Also update the module and the calling code to work with the new variable type definition. Make sure `terraform plan` succeeds without modifications.
-    b. Add a second validation block to the `subnets` variable that verifies that the two lists have the same length. Add an appropriate error message.
-    c. Verify that the validation fails if the number of regions and CIDRs are not the same.
+1. For the purposes of this workshop, we can do a different refactoring to illustrate multiple validation blocks: Let's combine the `regions` and `subnet_cidrs` variables into a `subnets` variable with type `object({ regions = list(string), cidrs = list(string) })`.
+   a. Remove the validation from the previous step, and modify the validation from the first step to work with the new variable type. Also update the module and the calling code to work with the new variable type definition. Make sure `terraform plan` succeeds without modifications.
+   b. Add a second validation block to the `subnets` variable that verifies that the two lists have the same length. Add an appropriate error message.
+   c. Verify that the validation fails if the number of regions and CIDRs are not the same.
 
 #### G.2 Checks
 
 [Checks](https://developer.hashicorp.com/terraform/language/checks) lets you use custom conditions that will execute on every plan or apply operation. Failing checks will therefore not, however, have any effect on Terraform's execution of operations.
 
-
 1. Checks are very flexible. We can write the input validations in the previous step as assertions. Transform the validation of subnet CIDRs into a check. The general syntax of a check is:
 
-    ```hcl
-    check "check_name" {
-      // Optional data block
+   ```hcl
+   check "check_name" {
+     // Optional data block
 
-      // At least one assertion block
-      assert {
-        condtion      = 1 == 1 // condition boolean expression
-        error_message = "error message"
-      }
-    }
-    ```
+     // At least one assertion block
+     assert {
+       condition     = 1 == 1 // condition boolean expression
+       error_message = "error message"
+     }
+   }
+   ```
 
-2. You can add data blocks in the checks to verify that a property of some resource outside the configuration or the scope of the module is correct. E.g., validate assumptions on VMs or clusters, check that resources are securely configured, or check that website responds with 200 OK after Terraform has run using the [`http` provider](https://registry.terraform.io/providers/hashicorp/http/latest/docs/data-sources/http).
+1. You can add data blocks in the checks to verify that a property of some resource outside the configuration or the scope of the module is correct. E.g., validate assumptions on VMs or clusters, check that resources are securely configured, or check that website responds with 200 OK after Terraform has run using the [`http` provider](https://registry.terraform.io/providers/hashicorp/http/latest/docs/data-sources/http).
 
-    In the `dns_a_record` module. Write a check that uses the [`google_dns_managed_zone` data source](https://registry.terraform.io/providers/hashicorp/google/latest/docs/data-sources/dns_managed_zone) and verifies that `visibility` is `"private"`.
+   In the `dns_a_record` module. Write a check that uses the [`google_dns_managed_zone` data source](https://registry.terraform.io/providers/hashicorp/google/latest/docs/data-sources/dns_managed_zone) and verifies that `visibility` is `"private"`.
 
-    Apply the changes to the configuration.
+   Apply the changes to the configuration.
 
-3. To see the check from the previous step, you can run `terraform destroy` to remove the resources and then apply the configuration again. Note how it gives you a warning during the `plan` step, since the managed zone does not exist yet. Terraform will still provision the DNS records however, independent of the state of the checks.
+1. To see the check from the previous step, you can run `terraform destroy` to remove the resources and then apply the configuration again. Note how it gives you a warning during the `plan` step, since the managed zone does not exist yet. Terraform will still provision the DNS records however, independent of the state of the checks.
+
+<!-- TODO #### G.3 Pre- and post conditions -->
 
 <!-- TODO
 ### Track G: Creating reusable modules
+
+Modules enables encapsulation, abstraction and reuse. Modules can be shared inside a single repository, across teams and projects in an organization or with external end users. This track will give you an introduction to some basic module development strategies, for further reading..
+
+A module is any directory with Terrform configuration files. It is conventional to gather nested modules in a `/modules/` directory in the repository. Modules can be used by referencing the module's source, which can be, which can be a local path, a Git repository, [the Terraform registry](https://registry.terraform.io/browse/modules), or [somewhere else](https://developer.hashicorp.com/terraform/language/modules/sources).
+
+
+The Terraform documentation has some great guidelines for [creating reusable modules](https://developer.hashicorp.com/terraform/language/modules/develop) which are highly recommended to read. They cover the [standard module structure](https://developer.hashicorp.com/terraform/language/modules/develop/structure), some patterns for [refactoring modules](https://developer.hashicorp.com/terraform/language/modules/develop/refactoring) and also k
+
+Method of distribution modules in an organization, method of distribution is important. The official docs recommend one module per repository, in most cases. Repository management and discoverability might be more difficult, and using a monorepo might be a better option.
+
+
+
+
+
 
 - Module structure and best practices
 - Sharing modules within an organization
 - Input/output variables and validation
 - Module versioning strategies
-
-
-
 ->
