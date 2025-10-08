@@ -164,7 +164,7 @@ You can trigger a refresh manually with `terraform refresh` or using the `-refre
 1. Let's see the effect of refreshing the state.
 
    1. Run `terraform plan -refresh=false`. You should not see any changes to be applied since the state file and configuration files are in sync.
-   1. Run `terraform plan -refresh-only -out=plan.tfplan`. You can see from the output which resources Terraform refreshes the status of. Terraform will generate a plan to update the state file.
+   1. Run `terraform plan -refresh-only -out="plan.tfplan"`. You can see from the output which resources Terraform refreshes the status of. Terraform will generate a plan to update the state file.
    1. Run `terraform apply plan.tfplan`. To apply the changes to the state file.
    1. (Optional) You can compare the state file by looking at the difference between of `terraform.tfstate` and `terraform.tfstate.backup`.
    1. Run `terraform plan -refresh=false` again. Terraform will now detect a difference between the state file and the configuration. Terraform will show the plan to change the real-world state back to the desired state decided by the configuration.
