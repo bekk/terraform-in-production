@@ -145,7 +145,9 @@ Terraform has two mechanisms for changing the address of a resource. `terraform 
 
    Run `terraform plan` to verify that there are no infrastructure changes, only state address changes.
 
-1. Apply the configuration before reverting the resource name back to `subnets` in the configuration file. After reverting, running `terraform plan` should show 3 resources to be added and 3 to be destroyed. Use `terraform state mv google_compute_subnetwork.subnets_renamed google_compute_subnetwork.subnets` to fix the state file, and run `terraform plan` to verify that there are no changes.
+1. Apply the configuration before reverting the resource name back to `subnets` in the configuration file. Remove the `moved` block.
+
+1. After reverting and removing the `moved` block, running `terraform plan` should show 3 resources to be added and 3 to be destroyed. Use `terraform state mv google_compute_subnetwork.subnets_renamed google_compute_subnetwork.subnets` to fix the state file, and run `terraform plan` to verify that there are no changes.
 
 You can read more about the available [state manipulation commands](https://developer.hashicorp.com/terraform/cli/commands/state).
 
