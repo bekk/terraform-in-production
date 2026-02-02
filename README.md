@@ -200,7 +200,7 @@ Terraform has a [style guide](https://developer.hashicorp.com/terraform/language
 
 By default, Terraform stores the state locally in a `terraform.tfstate` file. When using Terraform in a team it is important for everyone to be working with the same state so that operations will be applied to the same remote objects.
 
-With remote state, Terraform writes the state data to a remote data store, which can be shared between all members of a team. Remote state can be implemented by storing state in Amazon S3, Azure Blob Storage, Google Cloud Storage and more. Terraform configures the remote storage a [`backend` block](https://developer.hashicorp.com/terraform/language/backend).
+With remote state, Terraform writes the state data to a remote data store, which can be shared between all members of a team. Remote state can be implemented by storing state in Amazon S3, Azure Blob Storage, Google Cloud Storage and more. Terraform configures the remote storage with a [`backend` block](https://developer.hashicorp.com/terraform/language/backend).
 
 ### 2.1: Create a GCS bucket for remote state storage:
 
@@ -563,9 +563,9 @@ Modules enables encapsulation, abstraction and reuse. Modules can be shared insi
 A module is any directory with Terrform configuration files. It is conventional to gather nested modules in a `/modules/` directory in the repository. Modules can be used by referencing the module's source, which can be, which can be a local path, a Git repository, [the Terraform registry](https://registry.terraform.io/browse/modules), or [somewhere else](https://developer.hashicorp.com/terraform/language/modules/sources).
 
 
-The Terraform documentation has some great guidelines for [creating reusable modules](https://developer.hashicorp.com/terraform/language/modules/develop) which are highly recommended to read. They cover the [standard module structure](https://developer.hashicorp.com/terraform/language/modules/develop/structure), some patterns for [refactoring modules](https://developer.hashicorp.com/terraform/language/modules/develop/refactoring) and also k
+The Terraform documentation has some great guidelines for [creating reusable modules](https://developer.hashicorp.com/terraform/language/modules/develop) which are highly recommended to read. They cover the [standard module structure](https://developer.hashicorp.com/terraform/language/modules/develop/structure), some patterns for [refactoring modules](https://developer.hashicorp.com/terraform/language/modules/develop/refactoring).
 
-Method of distribution modules in an organization, method of distribution is important. The official docs recommend one module per repository, in most cases. Repository management and discoverability might be more difficult, and using a monorepo might be a better option.
+When distributing modules in an organization, the method of distribution is important. The official docs recommend one module per repository, in most cases. Repository management and discoverability might be more difficult, and using a monorepo might be a better option.
 
 
 
