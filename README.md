@@ -387,11 +387,56 @@ module "service_accounts" {
 
 ### Track A: Multi-Environment Management
 
-- Comparing approaches:
-  - Workspace-based workflows
-  - Directory-based environments with multiple state files
-  - Terragrunt integration
-- Hands-on lab: Implementing your chosen strategy with GCP projects
+Managing multiple environments (e.g., development, staging, production) is a core requirement for infrastructure as code. This allows you to test changes in a safe environment before applying them to production. In this track, we will explore two common strategies for managing environments in Terraform: **Directory-based separation** and **Workspaces**.
+
+#### Comparison
+
+| Feature | Directory-based environments | Terraform workspaces |
+| :--- | :--- | :--- |
+| **Clarity** | **High**: Directory path clearly indicates environment. | **Low**: Must check CLI status to know active workspace. |
+| **Isolation** | **High**: Completely separate state files and configurations. | **Medium**: Shared backend config, separate state paths. |
+| **Flexibility** | **High**: Easy to vary config per environment (e.g. instance sizes). | **Low**: Config must be identical; variations via variables/lookups. |
+| **Simplicity** | **Low**: Managing multiple directories can lead to duplication. | **High**: Single set of configuration files. |
+| **Risk** | **Low**: Harder to apply to wrong env. | **High**: Easy to forget to switch workspace. |
+| **Drift** | Environments can diverge if changes aren't propagated. | Guarantees consistent infrastructure definition. |
+| **Use case** | Best for teams needing clear separation and flexibility. | Best for small teams or simple environments. |
+
+#### Approach 1: Directory-based environments
+
+This approach involves creating separate directories for each environment (e.g., `envs/dev`, `envs/prod`). Each directory contains the Terraform configuration for that specific environment and maintains its own state file.
+
+**Task: Implement Directory-based Environments**
+
+1. Create a new directory structure `envs/dev` and `envs/prod` in the root of your repository.
+2. Copy the contents of your existing `infra/` directory into both `envs/dev` and `envs/prod`.
+3. Set the `name_prefix` variable differently for each:
+    *   In `envs/dev`: Kepp your existing `name_prefix = "<your-prefix>"`.
+    *   In `envs/prod`: Set a new prefix, e.g, `name_prefix = "<your-prefix>prod"`.
+4. In `envs/prod`, adjust the `backend` block to set a new `prefix`. E.g. `prefix = "terraform/prod/state"`. `envs/dev` and `envs/prod` will otherwise use the same state file.
+5. Initialize and plan both environments. You might have to run `terraform init -reconfigure` in `envs/prod` if you copied the `.terraform/` directory. First `envs/dev` and verify that there's no changes. Then `envs/prod` and verify that all resources will be created without destroying the dev resources. Apply the changes in prod.
+6. Verify in the GCP console that both environments have their own set of resources. Also verify that you can find both state files in your storage bucket.
+7. Destroy the `envs/prod` resources when done testing using `terraform destroy`. 
+
+#### Approach 2: Terraform Workspaces
+
+Terraform Workspaces allow you to manage multiple state files associated with a single configuration directory. You switch between workspaces using the CLI.
+
+**Task: Implement Workspaces**
+
+1. Go to your original `infra/` directory.
+2. List current workspaces: `terraform workspace list` (you should see `default`).
+3. Create a new workspace for production: `terraform workspace new prod`.
+4. Rename the `terraform.auto.tfvars` file to `default.tfvars`. Create a new `prod.tfvars` by copying the content in `default.tfvars`. Change the prefix, e.g., `name_prefix = "<your-prefix>prod"`.
+5. Switch between workspaces: `terraform workspace select default` (let's treat default as dev) or `terraform workspace select prod`.
+6. Run `terraform plan` in the `prod` workspace. Notice how Terraform plans to create a new set of resources because the state is empty for this workspace.
+7. Find the state file in your storage bucket. It should be located at `terraform/state/prod.tfstate`.
+8. Destroy the `prod` workspace resources when done testing using `terraform workspace select prod` followed by `terraform destroy`. Then you can delete the workspace with `terraform workspace delete prod`.
+
+#### Summary
+
+Both approaches have their pros and cons. Directory-based environments provide better isolation and flexibility, while workspaces offer simplicity and ease of management. Choose the approach that best fits your team's workflow and project requirements.
+
+Note how we used backend prefixes and variable files differently in both approaches to separate environments, and how the state files are stored differently in the remote backend. Both approaches are useful, and you can even combine them for more complex scenarios.
 
 ### Track B: Terraform Cloud Integration
 
